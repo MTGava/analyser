@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: grafite-analyzer
+    env: python
+    region: oregon
+    buildCommand: pip install --upgrade pip setuptools wheel && pip install -r backend/requirements.txt && bash build.sh
+    startCommand: bash start.sh
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.7
