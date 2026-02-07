@@ -24,12 +24,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Inicializa analyzer UMA VEZ (usa cache)
-print("🚀 Inicializando analyzer...")
-analyzer = ImprovedMixtureAnalyzer(
-    reference_dir=str(Path(__file__).parent.parent / "images")
-)
-print("✅ Analyzer pronto!\n")
+# Analyzer será inicializado no startup
+analyzer = None
 
 # Serve frontend
 frontend_dir = Path(__file__).parent.parent / "frontend"
@@ -46,7 +42,14 @@ async def root():
 
 @app.on_event("startup")
 async def startup():
-    """Log de inicialização"""
+    """Inicializa analyzer no startup"""
+    global analyzer
+    print("🚀 Inicializando analyzer...")
+    analyzer = ImprovedMixtureAnalyzer(
+        reference_dir=str(Path(__file__).parent.parent / "images")
+    )
+    print("✅ Analyzer pronto!\n")
+    
     info = analyzer.get_cache_info()
     print(f"📦 Cache carregado:")
     print(f"   Imagens: {info.get('total_images', 'N/A')}")
