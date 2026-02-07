@@ -11,7 +11,7 @@ import numpy as np
 from datetime import datetime
 from pathlib import Path
 import tempfile
-from image_analyzer_cached import CachedMixtureAnalyzer
+from test_categories import ImprovedMixtureAnalyzer
 
 app = FastAPI(title="Analisador Grafite:Água API")
 
@@ -26,9 +26,8 @@ app.add_middleware(
 
 # Inicializa analyzer UMA VEZ (usa cache)
 print("🚀 Inicializando analyzer...")
-analyzer = CachedMixtureAnalyzer(
-    reference_dir=str(Path(__file__).parent.parent / "images"),
-    cache_file=str(Path(__file__).parent.parent / "features_cache.pkl")
+analyzer = ImprovedMixtureAnalyzer(
+    reference_dir=str(Path(__file__).parent.parent / "images")
 )
 print("✅ Analyzer pronto!\n")
 
@@ -80,32 +79,7 @@ async def analyze_mixture(image: UploadFile = File(...)):
         
         try:
             # Analisa com categorias
-            from test_categories import ImprovedMixtureAnalyzer
-            improved_analyzer = ImprovedMixtureAnalyzer.__new__(ImprovedMixtureAnalyzer)
-            improved_analyzer.__dict__.update(analyzer.__dict__)
-            improved_analyzer.categories = {
-                'muito_concentrado': ['1_1', '1_2', '1_3'],
-                'concentrado': ['1_4', '1_5'],
-                'ideal': ['1_6', '1_7'],
-                'diluido': ['1_8', '1_9', '1_10'],
-                'muito_diluido': ['1_11', '1_12', '1_13', '1_14', '1_15']
-            }
-            improved_analyzer.category_names = {
-                'muito_concentrado': '⚠️ MUITO CONCENTRADO',
-                'concentrado': '✓ BOM - Concentrado',
-                'ideal': '✓✓ IDEAL',
-                'diluido': '✓ BOM - Diluído',
-                'muito_diluido': '⚠️ MUITO DILUÍDO'
-            }
-            improved_analyzer.category_ranges = {
-                'muito_concentrado': '1:1 a 1:3',
-                'concentrado': '1:4 a 1:5',
-                'ideal': '1:6 a 1:7',
-                'diluido': '1:8 a 1:10',
-                'muito_diluido': '1:11 a 1:15'
-            }
-            
-            result = improved_analyzer.analyze_with_category(temp_path)
+            result = analyzer.analyze_with_category(temp_path)
             
             return {
                 "success": True,

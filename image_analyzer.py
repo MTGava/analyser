@@ -54,36 +54,65 @@ class MixtureAnalyzer:
     def detect_template_region(self, image: np.ndarray) -> Tuple[int, int, int, int]:
         """
         Detecta automaticamente a região do gabarito cinza na parte superior
+        Busca especificamente o retângulo cinza #777777, não áreas brancas
         
         Returns:
             (x, y, width, height) do gabarito detectado
         """
-        # Busca na parte superior da imagem (20% superior)
         height, width = image.shape[:2]
-        search_region = image[0:int(height * 0.2), :]
+        search_region = image[0:int(height * 0.25), :]
         
-        # Converte para HSV para melhor detecção de cinza
-        hsv = cv2.cvtColor(search_region, cv2.COLOR_BGR2HSV)
+        # Converte para grayscale
+        gray = cv2.cvtColor(search_region, cv2.COLOR_BGR2GRAY)
         
-        # Máscara para detectar tons de cinza (baixa saturação)
-        lower_gray = np.array([0, 0, 50])
-        upper_gray = np.array([180, 50, 200])
-        mask = cv2.inRange(hsv, lower_gray, upper_gray)
+        # Detecta especificamente tons de cinza médio (#777777 = 119)
+        # Range: 80-160 (exclui branco >200 e preto <50)
+        lower_gray = 80
+        upper_gray = 160
+        mask = cv2.inRange(gray, lower_gray, upper_gray)
+        
+        # Remove ruído
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
         
         # Encontra contornos
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         if contours:
-            # Pega o maior contorno retangular
-            largest_contour = max(contours, key=cv2.contourArea)
-            x, y, w, h = cv2.boundingRect(largest_contour)
+            # Filtra contornos válidos (retangulares e grandes)
+            valid_contours = []
+            for contour in contours:
+                area = cv2.contourArea(contour)
+                if area < width * 20:  # Muito pequeno
+                    continue
+                
+                x, y, w, h = cv2.boundingRect(contour)
+                
+                # Valida proporções (retângulo horizontal)
+                aspect_ratio = w / (h + 1)
+                if aspect_ratio < 2:  # Não é retângulo largo
+                    continue
+                
+                # Valida tamanho mínimo
+                if w < width * 0.3:  # Largura mínima 30% da imagem
+                    continue
+                
+                # Valida cor média da região (deve ser cinza, não branco)
+                region = search_region[y:y+h, x:x+w]
+                mean_val = np.mean(region)
+                if mean_val > 180 or mean_val < 70:  # Muito claro ou escuro
+                    continue
+                
+                valid_contours.append((contour, area, x, y, w, h))
             
-            # Valida que é um retângulo razoável (mais largo que alto)
-            if w > h and w > width * 0.1:
+            if valid_contours:
+                # Pega o maior contorno válido
+                _, _, x, y, w, h = max(valid_contours, key=lambda c: c[1])
                 return (x, y, w, h)
         
         # Fallback: assume gabarito no topo centralizado
-        return (int(width * 0.2), 10, int(width * 0.6), 50)
+        return (int(width * 0.05), 10, int(width * 0.9), 50)
     
     def extract_features(self, image: np.ndarray, template_region: Tuple[int, int, int, int]) -> Dict:
         """
