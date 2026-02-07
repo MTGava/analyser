@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1864ab">
+    <meta name="description" content="Analisador de proporção grafite:água">
+    
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon.png">
+    
+    <title>Analisador Grafite:Água</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary: #1864ab;
+            --success: #51CF66;
+            --warning: #FFD43B;
+            --danger: #FF6B6B;
+            --info: #4ECDC4;
+            --bg: #f8f9fa;
+            --card-bg: #ffffff;
+            --text: #212529;
+            --text-secondary: #868e96;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+        
+        .header {
+            background: var(--primary);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .header p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-top: 0.25rem;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+        
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 1.5rem;
+        }
+        
+        .camera-container {
+            position: relative;
+            width: 100%;
+            padding-top: 75%;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+        
+        #video, #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        #canvas {
+            display: none;
+        }
+        
+        .camera-placeholder {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+        }
+        
+        .camera-placeholder svg {
+            width: 64px;
+            height: 64px;
+            opacity: 0.5;
+            margin-bottom: 1rem;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1558a0;
+        }
+        
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #47ba5c;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .result-card {
+            display: none;
+            border-left: 4px solid var(--success);
+        }
+        
+        .result-card.show {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .result-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .result-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            flex-shrink: 0;
+        }
+        
+        .result-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+        
+        .result-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .result-item:last-child {
+            border-bottom: none;
+        }
+        
+        .result-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        .result-value {
+            font-weight: 600;
+        }
+        
+        .confidence-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        
+        .confidence-fill {
+            height: 100%;
+            background: var(--success);
+            transition: width 0.5s ease-out;
+        }
+        
+        .recommendation {
+            background: #e7f5ff;
+            color: #1864ab;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e9ecef;
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error {
+            display: none;
+            background: #fff5f5;
+            color: #c92a2a;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid var(--danger);
+        }
+        
+        .error.show {
+            display: block;
+        }
+        
+        .instructions {
+            background: #fff3cd;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        
+        .instructions strong {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #856404;
+        }
+        
+        .instructions ul {
+            margin-left: 1.5rem;
+        }
+        
+        .instructions li {
+            margin-bottom: 0.25rem;
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .card {
+                padding: 1rem;
+            }
+            
+            .btn-group {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔬 Analisador Grafite:Água</h1>
+        <p>Sistema de análise de proporção de mistura</p>
+    </div>
+    
+    <div class="container">
+        <!-- Instruções -->
+        <div class="instructions">
+            <strong>📋 Instruções:</strong>
+            <ul>
+                <li>Aplique a mistura em papel sulfite</li>
+                <li>Fotografe com o gabarito cinza visível no topo</li>
+                <li>Mantenha boa iluminação e foto perpendicular</li>
+            </ul>
+        </div>
+        
+        <!-- Câmera -->
+        <div class="card">
+            <div class="camera-container">
+                <video id="video" autoplay playsinline></video>
+                <canvas id="canvas"></canvas>
+                <img id="uploadedImage" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;">
+                <div id="placeholder" class="camera-placeholder">
+                    <svg fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"></path>
+                    </svg>
+                    <p>Escolha uma opção abaixo</p>
+                </div>
+            </div>
+            
+            <div class="btn-group">
+                <button id="startCamera" class="btn btn-primary">
+                    📷 Câmera
+                </button>
+                <label for="fileInput" class="btn btn-primary" style="margin: 0; cursor: pointer;">
+                    📁 Importar
+                </label>
+                <input type="file" id="fileInput" accept="image/*" style="display: none;">
+            </div>
+            
+            <div class="btn-group" style="display: none;" id="cameraControls">
+                <button id="capture" class="btn btn-success">
+                    📸 Capturar
+                </button>
+                <button id="stopCamera" class="btn btn-primary">
+                    ⏹️ Parar
+                </button>
+            </div>
+            
+            <button id="analyzeUploaded" class="btn btn-success" style="display: none; margin-top: 1rem;">
+                🔍 Analisar Imagem
+            </button>
+        </div>
+        
+        <!-- Loading -->
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Analisando imagem...</p>
+        </div>
+        
+        <!-- Erro -->
+        <div id="error" class="error"></div>
+        
+        <!-- Resultado -->
+        <div id="result" class="card result-card">
+            <div class="result-header">
+                <div id="resultIcon" class="result-icon"></div>
+                <div>
+                    <div id="resultTitle" class="result-title"></div>
+                    <div id="resultSubtitle" class="result-subtitle"></div>
+                </div>
+            </div>
+            
+            <div class="result-item">
+                <span class="result-label">Proporção Detectada:</span>
+                <span id="resultRatio" class="result-value"></span>
+            </div>
+            
+            <div class="result-item">
+                <span class="result-label">Confiança:</span>
+                <span id="resultConfidence" class="result-value"></span>
+            </div>
+            <div class="confidence-bar">
+                <div id="confidenceBar" class="confidence-fill"></div>
+            </div>
+            
+            <div id="resultRecommendation" class="recommendation"></div>
+            
+            <button id="newAnalysis" class="btn btn-primary" style="margin-top: 1rem;">
+                🔄 Nova Análise
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const placeholder = document.getElementById('placeholder');
+        const startCameraBtn = document.getElementById('startCamera');
+        const stopCameraBtn = document.getElementById('stopCamera');
+        const captureBtn = document.getElementById('capture');
+        const cameraControls = document.getElementById('cameraControls');
+        const fileInput = document.getElementById('fileInput');
+        const uploadedImage = document.getElementById('uploadedImage');
+        const analyzeUploadedBtn = document.getElementById('analyzeUploaded');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const result = document.getElementById('result');
+        const newAnalysisBtn = document.getElementById('newAnalysis');
+        
+        let stream = null;
+        let uploadedFile = null;
+        const API_URL = window.location.origin;
+        
+        // Ativar câmera
+        startCameraBtn.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }
+                });
+                
+                video.srcObject = stream;
+                video.style.display = 'block';
+                placeholder.style.display = 'none';
+                startCameraBtn.style.display = 'none';
+                cameraControls.style.display = 'grid';
+                
+                hideError();
+            } catch (err) {
+                showError('Erro ao acessar câmera: ' + err.message);
+            }
+        });
+        
+        // Parar câmera
+        stopCameraBtn.addEventListener('click', () => {
+            stopCamera();
+        });
+        
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            video.style.display = 'none';
+            placeholder.style.display = 'block';
+            startCameraBtn.style.display = 'block';
+            cameraControls.style.display = 'none';
+        }
+        
+        // Capturar foto
+        captureBtn.addEventListener('click', async () => {
+            const ctx = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0);
+            
+            // Converte para blob
+            canvas.toBlob(async (blob) => {
+                await analyzeImage(blob);
+            }, 'image/png');
+        });
+        
+        // Upload de arquivo
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            // Valida tipo
+            if (!file.type.startsWith('image/')) {
+                showError('Por favor, selecione uma imagem válida');
+                return;
+            }
+            
+            // Exibe preview
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                uploadedImage.src = event.target.result;
+                uploadedImage.style.display = 'block';
+                placeholder.style.display = 'none';
+                video.style.display = 'none';
+                analyzeUploadedBtn.style.display = 'block';
+                
+                // Esconde controles de câmera se estiverem visíveis
+                stopCamera();
+            };
+            reader.readAsDataURL(file);
+            
+            uploadedFile = file;
+            hideError();
+        });
+        
+        // Analisar imagem carregada
+        analyzeUploadedBtn.addEventListener('click', async () => {
+            if (uploadedFile) {
+                await analyzeImage(uploadedFile);
+            }
+        });
+        
+        // Analisar imagem
+        async function analyzeImage(blob) {
+            loading.classList.add('show');
+            result.classList.remove('show');
+            hideError();
+            
+            try {
+                const formData = new FormData();
+                formData.append('image', blob, 'capture.png');
+                
+                const response = await fetch(`${API_URL}/api/analyze`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Erro ao analisar');
+                }
+                
+                if (data.success) {
+                    displayResult(data.result);
+                    stopCamera();
+                } else {
+                    throw new Error('Análise falhou');
+                }
+                
+            } catch (err) {
+                showError('Erro na análise: ' + err.message);
+            } finally {
+                loading.classList.remove('show');
+            }
+        }
+        
+        // Exibir resultado
+        function displayResult(res) {
+            const icon = document.getElementById('resultIcon');
+            const title = document.getElementById('resultTitle');
+            const subtitle = document.getElementById('resultSubtitle');
+            const ratio = document.getElementById('resultRatio');
+            const confidence = document.getElementById('resultConfidence');
+            const confidenceBar = document.getElementById('confidenceBar');
+            const recommendation = document.getElementById('resultRecommendation');
+            
+            // Cor da categoria
+            const color = res.color || '#51CF66';
+            result.style.borderLeftColor = color;
+            icon.style.backgroundColor = color + '20';
+            icon.style.color = color;
+            
+            // Dados
+            icon.textContent = res.icon || '✓';
+            title.textContent = res.category_name || 'Resultado';
+            subtitle.textContent = res.category_range || '';
+            ratio.textContent = res.exact_ratio || '-';
+            confidence.textContent = (res.confidence * 100).toFixed(0) + '%';
+            confidenceBar.style.width = (res.confidence * 100) + '%';
+            confidenceBar.style.backgroundColor = color;
+            recommendation.textContent = res.recommendation || '';
+            
+            result.classList.add('show');
+        }
+        
+        // Nova análise
+        newAnalysisBtn.addEventListener('click', () => {
+            result.classList.remove('show');
+            uploadedImage.style.display = 'none';
+            analyzeUploadedBtn.style.display = 'none';
+            placeholder.style.display = 'block';
+            uploadedFile = null;
+            fileInput.value = '';
+        });
+        
+        // Funções auxiliares
+        function showError(message) {
+            error.textContent = message;
+            error.classList.add('show');
+        }
+        
+        function hideError() {
+            error.classList.remove('show');
+        }
+        
+        // Service Worker (PWA)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/sw.js')
+                .catch(err => console.log('SW registration failed:', err));
+        }
+    </script>
+</body>
+</html>

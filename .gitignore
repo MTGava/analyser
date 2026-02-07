@@ -1,0 +1,36 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Ambientes virtuais
+venv/
+env/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporários
+*.log
+*.tmp
+/tmp/
+
+# Não enviar imagens de referência (muito grande)
+# Render vai gerar o cache no build
+# images/
+
+# Manter apenas o cache gerado
+# features_cache.pkl será gerado no build
