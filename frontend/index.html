@@ -535,26 +535,39 @@
                 const formData = new FormData();
                 formData.append('image', blob, 'capture.png');
                 
+                // Timeout de 30 segundos
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000);
+                
                 const response = await fetch(`${API_URL}/api/analyze`, {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    signal: controller.signal
                 });
                 
-                const data = await response.json();
+                clearTimeout(timeoutId);
                 
                 if (!response.ok) {
-                    throw new Error(data.detail || 'Erro ao analisar');
+                    const data = await response.json().catch(() => ({}));
+                    throw new Error(data.detail || `Erro ${response.status}: ${response.statusText}`);
                 }
+                
+                const data = await response.json();
                 
                 if (data.success) {
                     displayResult(data.result);
                     stopCamera();
                 } else {
-                    throw new Error('Análise falhou');
+                    throw new Error(data.detail || 'Análise falhou');
                 }
                 
             } catch (err) {
-                showError('Erro na análise: ' + err.message);
+                if (err.name === 'AbortError') {
+                    showError('⏱️ Timeout: A análise demorou muito. Tente novamente.');
+                } else {
+                    showError('❌ Erro: ' + err.message);
+                }
+                console.error('Erro detalhado:', err);
             } finally {
                 loading.classList.remove('show');
             }

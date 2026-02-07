@@ -72,14 +72,22 @@ async def analyze_mixture(image: UploadFile = File(...)):
     """
     Analisa proporção de mistura grafite:água
     """
-    # Carrega analyzer se necessário
-    current_analyzer = get_analyzer()
+    print(f"📥 Recebendo requisição de análise: {image.filename}")
+    
+    try:
+        # Carrega analyzer se necessário
+        current_analyzer = get_analyzer()
+        print("✓ Analyzer carregado")
+    except Exception as e:
+        print(f"❌ Erro ao carregar analyzer: {e}")
+        raise HTTPException(503, f"Erro ao inicializar analyzer: {str(e)}")
     
     try:
         # Valida tipo de arquivo
         if not image.content_type.startswith('image/'):
             raise HTTPException(400, "Arquivo deve ser uma imagem")
         
+        print(f"✓ Lendo imagem ({image.content_type})...")
         # Lê imagem
         contents = await image.read()
         nparr = np.frombuffer(contents, np.uint8)
@@ -88,14 +96,20 @@ async def analyze_mixture(image: UploadFile = File(...)):
         if img is None:
             raise HTTPException(400, "Não foi possível ler a imagem")
         
+        print(f"✓ Imagem decodificada: {img.shape}")
+        
         # Salva temporariamente
         with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp:
             cv2.imwrite(tmp.name, img)
             temp_path = tmp.name
         
+        print(f"✓ Imagem salva em: {temp_path}")
+        
         try:
             # Analisa com categorias
+            print("🔍 Iniciando análise...")
             result = current_analyzer.analyze_with_category(temp_path)
+            print(f"✅ Análise completa: {result.get('category_name', 'N/A')}")
             
             return {
                 "success": True,
@@ -123,7 +137,9 @@ async def analyze_mixture(image: UploadFile = File(...)):
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
         print(f"❌ Erro ao analisar: {e}")
+        print(traceback.format_exc())
         raise HTTPException(500, f"Erro ao processar imagem: {str(e)}")
 
 @app.get("/api/health")
