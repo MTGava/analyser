@@ -11,7 +11,7 @@ import numpy as np
 from datetime import datetime
 from pathlib import Path
 import tempfile
-from test_categories import ImprovedMixtureAnalyzer
+from analyzer_production import ProductionMixtureAnalyzer
 
 app = FastAPI(title="Analisador Grafite:Água API")
 
@@ -40,9 +40,10 @@ def get_analyzer():
     
     try:
         analyzer_loading = True
-        print("🚀 Inicializando analyzer (lazy loading)...")
-        analyzer = ImprovedMixtureAnalyzer(
-            reference_dir=str(Path(__file__).parent.parent / "images")
+        print("🚀 Inicializando analyzer (lazy loading com cache)...")
+        analyzer = ProductionMixtureAnalyzer(
+            reference_dir=str(Path(__file__).parent.parent / "images"),
+            cache_file=str(Path(__file__).parent.parent / "features_cache.pkl")
         )
         print("✅ Analyzer pronto!\n")
         return analyzer
