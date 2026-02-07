@@ -24,8 +24,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Analyzer será inicializado no startup
+# Analyzer carrega lazy (primeira requisição)
 analyzer = None
+analyzer_loading = False
+
+def get_analyzer():
+    """Retorna analyzer, carregando se necessário (lazy loading)"""
+    global analyzer, analyzer_loading
+    
+    if analyzer is not None:
+        return analyzer
+    
+    if analyzer_loading:
+        raise HTTPException(status_code=503, detail="Analyzer ainda carregando, tente novamente em alguns segundos")
+    
+    try:
+        analyzer_loading = True
+        print("🚀 Inicializando analyzer (lazy loading)...")
+        analyzer = ImprovedMixtureAnalyzer(
+            reference_dir=str(Path(__file__).parent.parent / "images")
+        )
+        print("✅ Analyzer pronto!\n")
+        return analyzer
+    finally:
+        analyzer_loading = False
 
 # Serve frontend
 frontend_dir = Path(__file__).parent.parent / "frontend"
@@ -42,26 +64,17 @@ async def root():
 
 @app.on_event("startup")
 async def startup():
-    """Inicializa analyzer no startup"""
-    global analyzer
-    print("🚀 Inicializando analyzer...")
-    analyzer = ImprovedMixtureAnalyzer(
-        reference_dir=str(Path(__file__).parent.parent / "images")
-    )
-    print("✅ Analyzer pronto!\n")
-    
-    info = analyzer.get_cache_info()
-    print(f"📦 Cache carregado:")
-    print(f"   Imagens: {info.get('total_images', 'N/A')}")
-    print(f"   Tamanho: {info.get('size_kb', 'N/A')} KB")
-    print(f"   Criado: {info.get('created', 'N/A')}")
-    print()
+    """Log de inicialização (sem carregar analyzer)"""
+    print("✅ Servidor iniciado! Analyzer carregará na primeira requisição.")
 
 @app.post("/api/analyze")
 async def analyze_mixture(image: UploadFile = File(...)):
     """
     Analisa proporção de mistura grafite:água
     """
+    # Carrega analyzer se necessário
+    current_analyzer = get_analyzer()
+    
     try:
         # Valida tipo de arquivo
         if not image.content_type.startswith('image/'):
@@ -82,7 +95,7 @@ async def analyze_mixture(image: UploadFile = File(...)):
         
         try:
             # Analisa com categorias
-            result = analyzer.analyze_with_category(temp_path)
+            result = current_analyzer.analyze_with_category(temp_path)
             
             return {
                 "success": True,
